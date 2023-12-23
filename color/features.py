@@ -15,7 +15,7 @@ def luminance_score(img: np.ndarray) -> np.float64:
 
 def features(image: np.ndarray) -> tuple:
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-    threshold = (cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 4) == 255)
+    threshold = (cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 21, 4) == 0)
     
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
