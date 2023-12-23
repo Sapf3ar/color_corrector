@@ -1,3 +1,7 @@
+import numpy as np
+import cv2
+
+
 def contrast_score(
     img: np.ndarray, 
     blur_kernel: tuple[int, int] = (11, 11)

@@ -1,8 +1,19 @@
 # import the necessary packages
 import numpy as np
 import cv2
+from sklearn.preprocessing import MinMaxScaler
+from midas import Midas
 
-def color_transfer(source, target, clip=True, preserve_paper=True):
+depth_model = Midas(model_type="MiDaS_small")
+scaler = MinMaxScaler()
+
+
+def color_transfer(source,
+                   target,
+                   clip=True,
+                   preserve_paper=True,
+                   max_depth_th=0.7,
+                   min_depth_th=0.2):
     """
     Transfers the color distribution from the source to the target
     image using the mean and standard deviations of the L*a*b*
@@ -35,22 +46,47 @@ def color_transfer(source, target, clip=True, preserve_paper=True):
     transfer: NumPy array
         OpenCV image (w, h, 3) NumPy array (uint8)
     """
+    # target_depth = depth_model.get_depth_map(target)
+    # target_depth = scaler.fit_transform(target_depth)
+
+    source_depth = depth_model.get_depth_map(source)
+    source_depth = scaler.fit_transform(source_depth)
+
     # convert the images from the RGB to L*ab* color space, being
     # sure to utilizing the floating point data type (note: OpenCV
     # expects floats to be 32-bit, so use that instead of 64-bit)
     source = cv2.cvtColor(source, cv2.COLOR_BGR2LAB).astype("float32")
     target = cv2.cvtColor(target, cv2.COLOR_BGR2LAB).astype("float32")
 
-    # compute color statistics for the source and target images
-    (lMeanSrc, lStdSrc, aMeanSrc, aStdSrc, bMeanSrc, bStdSrc) = image_stats(source)
-    (lMeanTar, lStdTar, aMeanTar, aStdTar, bMeanTar, bStdTar) = image_stats(target)
+    middleground_source = (source_depth >= max_depth_th) + (source_depth <= min_depth_th)
+    source_stats = image_stats(source, middleground_source, use_mask=True)
 
+    target_stats = image_stats(target)
+
+    transfer = np.zeros(target.shape)
+
+    transfer = make_transform(transfer,
+                              target,
+                              target_stats=target_stats,
+                              source_stats=source_stats,
+                              mask=None,
+                              preserve_paper=preserve_paper,
+                              clip=clip)
+    
+    transfer = cv2.cvtColor(transfer.astype("uint8"), cv2.COLOR_LAB2BGR)
+    
+    # return the color transferred image
+    return transfer
+
+
+def make_transform(transfer, target, target_stats, source_stats, mask, preserve_paper, clip, use_mask=False):
+    (lMeanSrc, lStdSrc, aMeanSrc, aStdSrc, bMeanSrc, bStdSrc) = source_stats
+    (lMeanTar, lStdTar, aMeanTar, aStdTar, bMeanTar, bStdTar) = target_stats
     # subtract the means from the target image
     (l, a, b) = cv2.split(target)
     l -= lMeanTar
     a -= aMeanTar
     b -= bMeanTar
-
     if preserve_paper:
         # scale by the standard deviations using paper proposed factor
         l = (lStdTar / lStdSrc) * l
@@ -73,16 +109,18 @@ def color_transfer(source, target, clip=True, preserve_paper=True):
     a = _scale_array(a, clip=clip)
     b = _scale_array(b, clip=clip)
 
-    # merge the channels together and convert back to the RGB color
-    # space, being sure to utilize the 8-bit unsigned integer data
-    # type
-    transfer = cv2.merge([l, a, b])
-    transfer = cv2.cvtColor(transfer.astype("uint8"), cv2.COLOR_LAB2BGR)
-    
-    # return the color transferred image
+    if use_mask:
+        l[mask] = 0
+        a[mask] = 0
+        b[mask] = 0
+        transfer += cv2.merge([l, a, b])
+    else:
+        transfer = cv2.merge([l, a, b])
+
     return transfer
 
-def image_stats(image):
+
+def image_stats(image, mask=None, use_mask=False):
     """
     Parameters:
     -------
@@ -96,6 +134,10 @@ def image_stats(image):
     """
     # compute the mean and standard deviation of each channel
     (l, a, b) = cv2.split(image)
+    if use_mask:
+        l = np.ma.array(l, mask=mask)
+        a = np.ma.array(a, mask=mask)
+        b = np.ma.array(b, mask=mask)
     (lMean, lStd) = (l.mean(), l.std())
     (aMean, aStd) = (a.mean(), a.std())
     (bMean, bStd) = (b.mean(), b.std())

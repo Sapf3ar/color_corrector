@@ -1,7 +1,10 @@
-# import the necessary packages
 import numpy as np
 import argparse
 import cv2
+import matplotlib.pyplot as plt
+
+from transfer import color_transfer
+
 
 def show_image(title, image, width = 300):
     # resize the image to have a constant width, just to
@@ -27,21 +30,23 @@ def str2bool(v):
 # construct the argument parser and parse the arguments
 # 
 # load the images
-source = cv2.imread("im1.jpeg")
-# source = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
+    
+if __name__ == "__main__":
+    source = cv2.imread("im2.jpeg")
+    # source = cv2.cvtColor(source, cv2.COLOR_BGR2RGB)
 
-target = cv2.imread("im2.jpeg")
-# target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
+    target = cv2.imread("im1.jpeg")
+    # target = cv2.cvtColor(target, cv2.COLOR_BGR2RGB)
 
-# transfer the color distribution from the source image
-# to the target image
-transfer = color_transfer(source, target, clip=True, preserve_paper=False)
+    # transfer the color distribution from the source image
+    # to the target image
+    transfer = color_transfer(source, target, clip=True, preserve_paper=False, max_depth_th=1., min_depth_th=0.)
 
-# check to see if the output image should be saved
-# if args["output"] is not None:
-#     cv2.imwrite(args["output"], transfer)
+    # check to see if the output image should be saved
+    # if args["output"] is not None:
+    #     cv2.imwrite(args["output"], transfer)
 
-# show the images and wait for a key press
-show_image("Source", source)
-show_image("Target", target)
-show_image("Transfer", transfer)
+    # show the images and wait for a key press
+    show_image("Source", source)
+    show_image("Target", target)
+    show_image("Transfer", transfer)
